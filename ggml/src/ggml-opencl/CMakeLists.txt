@@ -3,6 +3,7 @@ find_package(Python3 REQUIRED)
 
 set(TARGET_NAME ggml-opencl)
 
+message(STATUS "OpenCL_LIBRARIES: ${OpenCL_LIBRARIES}")
 ggml_add_backend_library(${TARGET_NAME}
                          ggml-opencl.cpp
                          ../../include/ggml-opencl.h)

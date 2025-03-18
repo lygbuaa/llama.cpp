@@ -477,6 +477,8 @@ ifneq ($(filter aarch64%,$(UNAME_M)),)
 	# Nvidia Jetson
 	MK_CFLAGS   += -mcpu=native
 	MK_CXXFLAGS += -mcpu=native
+	# MK_CFLAGS   += -mcpu=cortex-a78ae
+	# MK_CXXFLAGS += -mcpu=cortex-a78ae
 	JETSON_RELEASE_INFO = $(shell jetson_release)
 	ifdef JETSON_RELEASE_INFO
 		ifneq ($(filter TX2%,$(JETSON_RELEASE_INFO)),)

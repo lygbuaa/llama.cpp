@@ -28,6 +28,8 @@
 #include <memory>
 #include <charconv>
 
+#include "common/logging_utils.h"
+
 #undef MIN
 #undef MAX
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -323,6 +325,7 @@ inline std::string read_file(const std::string &path) {
 }
 
 static cl_program build_program_from_source(cl_context ctx, cl_device_id dev, const char* program_buffer, const std::string &compile_opts) {
+    HANG_STOPWATCH();
     cl_program p;
     char *program_log;
     size_t program_size;
@@ -352,6 +355,7 @@ static cl_program build_program_from_source(cl_context ctx, cl_device_id dev, co
 }
 
 static ggml_backend_opencl_context * ggml_cl2_init(ggml_backend_dev_t dev) {
+    HANG_STOPWATCH();
     static bool initialized = false;
     static ggml_backend_opencl_context *backend_ctx = nullptr;
 
@@ -544,6 +548,7 @@ static ggml_backend_opencl_context * ggml_cl2_init(ggml_backend_dev_t dev) {
     } else {
         GGML_LOG_ERROR("Unsupported GPU: %s\n", default_device->name);
         backend_ctx->gpu_family = GPU_FAMILY::UNKNOWN;
+        /** Mali-G78AE is unsupported. */
         return backend_ctx;
     }
 
@@ -896,6 +901,7 @@ static ggml_backend_opencl_context * ggml_cl2_init(ggml_backend_dev_t dev) {
 }
 
 static void ggml_cl2_free(void) {
+    HANG_STOPWATCH();
 #ifdef GGML_OPENCL_PROFILING
     FILE * fperf = fopen("cl_profiling.csv", "w");
     if (!fperf) {
@@ -1033,6 +1039,7 @@ static void ggml_backend_opencl_synchronize(ggml_backend_t backend) {
 }
 
 static ggml_status ggml_backend_opencl_graph_compute(ggml_backend_t backend, ggml_cgraph * cgraph) {
+    HANG_STOPWATCH();
     for (int i = 0; i < cgraph->n_nodes; i++) {
         ggml_tensor * node = cgraph->nodes[i];
 
@@ -1051,6 +1058,7 @@ static ggml_status ggml_backend_opencl_graph_compute(ggml_backend_t backend, ggm
 }
 
 static bool ggml_opencl_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
+    HANG_STOPWATCH();
     GGML_UNUSED(dev);
 
     switch (op->op) {
@@ -1170,6 +1178,7 @@ static ggml_backend_i ggml_backend_opencl_i = {
 };
 
 ggml_backend_t ggml_backend_opencl_init(void) {
+    HANG_STOPWATCH();
     ggml_backend_dev_t dev = ggml_backend_reg_dev_get(ggml_backend_opencl_reg(), 0);
     ggml_backend_opencl_context *backend_ctx = ggml_cl2_init(dev);
 
@@ -1184,6 +1193,7 @@ ggml_backend_t ggml_backend_opencl_init(void) {
 }
 
 bool ggml_backend_is_opencl(ggml_backend_t backend) {
+    HANG_STOPWATCH();
     return backend && backend->iface.get_name == ggml_backend_opencl_name;
 }
 
@@ -1298,11 +1308,13 @@ static void ggml_backend_opencl_buffer_free_buffer(ggml_backend_buffer_t buffer)
 }
 
 static void * ggml_backend_opencl_buffer_get_base(ggml_backend_buffer_t buffer) {
+    HANG_STOPWATCH();
     ggml_backend_opencl_context * backend_ctx = ggml_cl2_init(buffer->buft->device);
     return (void *) (uintptr_t) backend_ctx->alignment;
 }
 
 static enum ggml_status ggml_backend_opencl_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tensor * tensor) {
+    HANG_STOPWATCH();
     ggml_backend_opencl_buffer_context * ctx = (ggml_backend_opencl_buffer_context *) buffer->context;
 
     ggml_cl2_init(buffer->buft->device);
@@ -1353,6 +1365,7 @@ inline bool use_adreno_kernels(const ggml_tensor *tensor) {
 }
 
 static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer, ggml_tensor * tensor, const void * data, size_t offset, size_t size) {
+    HANG_STOPWATCH();
     ggml_backend_opencl_context *backend_ctx = ggml_cl2_init(buffer->buft->device);
 
     cl_context context = backend_ctx->context;
@@ -1612,6 +1625,7 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer, 
 }
 
 static void ggml_backend_opencl_buffer_get_tensor(ggml_backend_buffer_t buffer, const ggml_tensor * tensor, void * data, size_t offset, size_t size) {
+    HANG_STOPWATCH();
     GGML_ASSERT(tensor->extra);
 
     ggml_backend_opencl_context *backend_ctx = ggml_cl2_init(buffer->buft->device);
@@ -1667,6 +1681,7 @@ static void ggml_backend_opencl_buffer_get_tensor(ggml_backend_buffer_t buffer, 
 }
 
 static void ggml_backend_opencl_buffer_clear(ggml_backend_buffer_t buffer, uint8_t value) {
+    HANG_STOPWATCH();
     ggml_backend_dev_t dev = buffer->buft->device;
     ggml_backend_opencl_context *backend_ctx = ggml_cl2_init(dev);
     cl_command_queue queue = backend_ctx->queue;
@@ -1706,6 +1721,7 @@ static const char * ggml_backend_opencl_buffer_type_get_name(ggml_backend_buffer
 }
 
 static ggml_backend_buffer_t ggml_backend_opencl_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buffer_type, size_t size) {
+    HANG_STOPWATCH();
     ggml_backend_opencl_context *backend_ctx = ggml_cl2_init(buffer_type->device);
 
     // clCreateBuffer returns -61 for size 0
@@ -1724,6 +1740,7 @@ static ggml_backend_buffer_t ggml_backend_opencl_buffer_type_alloc_buffer(ggml_b
 }
 
 static size_t ggml_backend_opencl_buffer_type_get_alignment(ggml_backend_buffer_type_t buffer_type) {
+    HANG_STOPWATCH();
     // FIXME: not thread safe, device may not be initialized yet
     static cl_uint alignment = -1;
     if (alignment == (cl_uint)-1) {
@@ -1734,6 +1751,7 @@ static size_t ggml_backend_opencl_buffer_type_get_alignment(ggml_backend_buffer_
 }
 
 static size_t ggml_backend_opencl_buffer_type_get_max_size(ggml_backend_buffer_type_t buffer_type) {
+    HANG_STOPWATCH();
     static size_t max_size = -1;
     if (max_size == (size_t)-1) {
         ggml_backend_opencl_context * backend_ctx = ggml_cl2_init(buffer_type->device);
@@ -1809,6 +1827,7 @@ static void ggml_backend_opencl_device_get_props(ggml_backend_dev_t dev, struct 
 }
 
 static ggml_backend_t ggml_backend_opencl_device_init(ggml_backend_dev_t dev, const char * params) {
+    HANG_STOPWATCH();
     ggml_backend_opencl_context * backend_ctx = ggml_cl2_init(dev);
 
     ggml_backend_t backend = new ggml_backend {
@@ -1896,6 +1915,7 @@ static struct ggml_backend_reg_i ggml_backend_opencl_reg_i = {
 };
 
 ggml_backend_reg_t ggml_backend_opencl_reg(void) {
+    HANG_STOPWATCH();
     // TODO: make this thread-safe somehow?
     static ggml_backend_reg reg;
     static bool initialized = false;
