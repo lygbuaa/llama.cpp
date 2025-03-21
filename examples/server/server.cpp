@@ -18,6 +18,11 @@
 #include "index.html.gz.hpp"
 #include "loading.html.hpp"
 
+/** [qwen2vl] */
+#include "../llava/clip.h"
+#include "../llava/llava.h"
+/** [qwen2vl] */
+
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -1790,6 +1795,11 @@ struct server_context {
     llama_model * model = nullptr;
     llama_context * ctx = nullptr;
 
+    /** [qwen2vl] */
+    struct clip_ctx * ctx_clip = NULL;
+    bool multimodal = false;
+    /** [qwen2vl] */
+
     const llama_vocab * vocab = nullptr;
 
     llama_model * model_dft = nullptr;
@@ -1819,6 +1829,14 @@ struct server_context {
     common_chat_templates_ptr chat_templates;
 
     ~server_context() {
+        /** [qwen2vl] */
+        if (ctx_clip) 
+        {
+            clip_free(ctx_clip);
+            ctx_clip = NULL;
+        }
+        /** [qwen2vl] */
+
         // Clear any sampling context
         for (server_slot & slot : slots) {
             common_sampler_free(slot.smpl);
@@ -1840,6 +1858,25 @@ struct server_context {
         SRV_INF("loading model '%s'\n", params.model.c_str());
 
         params_base = params;
+        /** [qwen2vl] */
+        if (!params.mmproj.empty()) 
+        {
+            multimodal = true;
+            SRV_WRN("[qwen2vl] multimodal mmproj path: %s\n", params.mmproj.c_str());
+            ctx_clip = clip_model_load(params.mmproj.c_str(), /*verbosity=*/ 1);
+            if(ctx_clip == nullptr) 
+            {
+                SRV_ERR("[qwen2vl] unable to load clip model: %s\n", params.mmproj.c_str());
+                return false;
+            }
+
+            // request larger context for the image embedding
+            if (params_base.n_ctx < 2048) 
+            {
+                params_base.n_ctx = 2048;
+            }
+        }
+        /** [qwen2vl] */
 
         llama_init = common_init_from_params(params_base);
 

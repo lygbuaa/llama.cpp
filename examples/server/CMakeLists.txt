@@ -35,7 +35,8 @@ add_executable(${TARGET} ${TARGET_SRCS})
 install(TARGETS ${TARGET} RUNTIME)
 
 target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(${TARGET} PRIVATE common ${CMAKE_THREAD_LIBS_INIT})
+MESSAGE(STATUS "[qwen2vl] link server with llava")
+target_link_libraries(${TARGET} PRIVATE common llava ${CMAKE_THREAD_LIBS_INIT})
 
 if (LLAMA_SERVER_SSL)
     find_package(OpenSSL REQUIRED)
