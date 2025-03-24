@@ -41,6 +41,29 @@ using json = nlohmann::ordered_json;
 #define QUE_ERR(fmt, ...) LOG_ERR("que  %12.*s: " fmt, 12, __func__, __VA_ARGS__)
 #define QUE_DBG(fmt, ...) LOG_DBG("que  %12.*s: " fmt, 12, __func__, __VA_ARGS__)
 
+/** [qwen2vl] */
+// struct clip_image_u8 {
+//     int nx;
+//     int ny;
+
+//     std::vector<uint8_t> buf;
+// };
+struct clip_image_u8;
+
+struct slot_image
+{
+    int32_t id;
+
+    bool request_encode_image = false;
+    float * image_embedding = nullptr;
+    int32_t image_tokens = 0;
+
+    clip_image_u8 * img_data;
+
+    std::string prefix_prompt; // before of this image
+};
+/** [qwen2vl] */
+
 template <typename T>
 static T json_value(const json & body, const std::string & key, const T & default_value) {
     // Fallback null to default value

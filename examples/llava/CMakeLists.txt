@@ -1,3 +1,6 @@
+set(CMAKE_C_FLAGS "-fPIC -Wall -D_GNU_SOURCE -rdynamic -export-dynamic -Werror=return-type")
+set(CMAKE_CXX_FLAGS "-std=c++17 -fexceptions -frtti -fPIC -Wall -D_GNU_SOURCE -rdynamic -export-dynamic -Werror=return-type")
+
 add_library(llava OBJECT
             llava.cpp
             llava.h
@@ -8,6 +11,7 @@ add_library(llava OBJECT
 target_link_libraries(llava PRIVATE ggml llama ${CMAKE_THREAD_LIBS_INIT})
 
 target_include_directories(llava PUBLIC .)
+target_include_directories(llava PUBLIC common)
 target_include_directories(llava PUBLIC ../..)
 target_include_directories(llava PUBLIC ../../common)
 
@@ -61,6 +65,13 @@ target_compile_features(${TARGET} PRIVATE cxx_std_17)
 set(TARGET llama-llava-clip-quantize-cli)
 add_executable(${TARGET} clip-quantize-cli.cpp)
 set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME llama-llava-clip-quantize-cli)
+install(TARGETS ${TARGET} RUNTIME)
+target_link_libraries(${TARGET} PRIVATE common llava ${CMAKE_THREAD_LIBS_INIT})
+target_compile_features(${TARGET} PRIVATE cxx_std_17)
+
+set(TARGET llama-qwen2vl-server)
+add_executable(${TARGET} qwen2vl-server.cpp)
+set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME llama-qwen2vl-server)
 install(TARGETS ${TARGET} RUNTIME)
 target_link_libraries(${TARGET} PRIVATE common llava ${CMAKE_THREAD_LIBS_INIT})
 target_compile_features(${TARGET} PRIVATE cxx_std_17)

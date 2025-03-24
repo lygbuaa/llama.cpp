@@ -1299,6 +1299,11 @@ struct server_slot {
 
     std::function<void(int)> callback_on_release;
 
+    /** [qwen2vl] */
+    // multimodal
+    std::vector<slot_image> images;
+    /** [qwen2vl] */
+
     void reset() {
         SLT_DBG(*this, "%s", "\n");
 
@@ -1315,6 +1320,18 @@ struct server_slot {
 
         generated_tokens.clear();
         generated_token_probs.clear();
+
+        /** [qwen2vl] */
+        for (slot_image & img : images)
+        {
+            free(img.image_embedding);
+            if (img.img_data) {
+                clip_image_u8_free(img.img_data);
+            }
+            img.prefix_prompt = "";
+        }
+        images.clear();
+        /** [qwen2vl] */
     }
 
     bool is_non_causal() const {
