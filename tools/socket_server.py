@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import time, threading, socket, struct, sys
+import time, threading, socket, struct, sys, json
 # import numpy as np
 
 def GfCheckSocketBuffer(sock):
@@ -35,13 +35,15 @@ class SocketServer(object):
         self.conn = None
         self.type = type
         self.client_addr = None
+        self.dst_addr = (host, port)
 
-        # self.dst_addr = ("192.168.1.102", 10000)
         if type == socket.SOCK_DGRAM:
             self.socket_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket_server.bind((host, port))
         elif type == socket.SOCK_STREAM:
             self.socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket_server.bind((host, port))
             self.socket_server.listen()
             (self.conn, self.client_addr) = self.socket_server.accept()
@@ -52,6 +54,14 @@ class SocketServer(object):
         GfCheckSocketBuffer(self.socket_server)
         self.socket_server.setblocking(True)
         print("udp server listen on {}:{}".format(self.host, self.port))
+
+    def send_array(self, data_array):
+        if self.type == socket.SOCK_DGRAM:
+            self.socket_server.sendto(data_array, self.dst_addr)
+        elif self.type == socket.SOCK_STREAM:
+            self.conn.send(data_array)
+        else:
+            raise SystemError("socket type {} not supported !".format(type))
 
     def recv_msg(self):
         if self.type == socket.SOCK_DGRAM:
@@ -123,12 +133,26 @@ def run_server():
                 # header = self.msg[0:3]
                 # print("msg len: {}".format(len(self.msg)))
                 # counter = struct.unpack(">I", self.msg[0:4])[0]
-                print("recv msg: {}".format(self.msg.decode('utf-8')))
+                end_idx = self.msg.find(b'\x00')
+                print("recv bytes: {}, end_idx: {}".format(len(self.msg), end_idx))
+                if len(self.msg) < 2:
+                    print("empty msg!")
+                    return
+                if end_idx == -1:
+                    end_idx = len(self.msg)
 
-                # if counter % 1024 == 0:
-                #     print("client msg counter: {}, frame: {}".format(counter, counter/1024))
+                valid_str = self.msg[:end_idx].decode('utf-8')
+                print("recv msg({}): {}".format(len(valid_str), valid_str))
+                req = json.loads(valid_str)
+                if "image_filename" in req and "prompt" in req:
+                    print("image_filename: {}, prompt: {}".format(req["image_filename"], req["prompt"]))
+                elif "prompt" in req:
+                    print("prompt: {}".format(req["prompt"]))
+                resp_bytes = bytearray(u"这是，我的回复。。。", "utf-8")
+                time.sleep(1)
+                self.send_array(resp_bytes)
 
-    s_server = SocketServerQwen(host="127.0.0.1", port=10001, len=1024, type=socket.SOCK_STREAM)
+    s_server = SocketServerQwen(host="192.18.34.101", port=10001, len=1024, type=socket.SOCK_STREAM)
     s_server.start_recv_thread(run_background=True)
     counter = 0
     while True:

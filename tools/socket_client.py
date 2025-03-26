@@ -149,25 +149,29 @@ class SocketClient(object):
 
 
 def run_client():
-    s_client = SocketClient(host="127.0.0.1", port=10001, type=socket.SOCK_STREAM)
+    s_client = SocketClient(host="192.18.34.101", port=10001, type=socket.SOCK_STREAM)
     s_client.start_recv_thread()
     counter = 0
     msg = bytearray(1024) #1024
     msg.__init__(len(msg))
-    image_path_json = {"image_filename": "bridge_640_360.jpg", "prompt": u"图片是哪个地方?"}
-    q1_prompt_json = {"prompt": u"图中是什么天气?"}
-    q2_prompt_json = {"prompt": u"图中有几辆汽车?"}
+    image1_path_json = {"image_filename": "bridge_640_360.jpg", "prompt": u"描述一下这张图片?"}
+    image2_path_json = {"image_filename": "hhl_360_540.jpg", "prompt": u"描述一下这张图片?"}
+    q1_prompt_json = {"prompt": u"刚才输入的图片是哪个地方?"}
+    q2_prompt_json = {"prompt": u"刚才输入的图片中有几辆汽车?"}
+    q3_prompt_json = {"prompt": u"刚才输入的图片中有几个行人?"}
+    q4_prompt_json = {"prompt": u"刚才输入的图片中有几辆公交车?"}
+    q5_prompt_json = {"prompt": u"刚才输入的图片中有几辆摩托车?"}
 
     msg = bytearray(1024) #1024
     msg.__init__(len(msg))
     # str_header = u"你好..."
-    msg_str = bytearray(json.dumps(image_path_json), "utf-8")
+    msg_str = bytearray(json.dumps(image1_path_json), "utf-8")
     # msg_str = bytearray(u"图片中是哪个景点", "utf-8")
     msg[0:len(msg_str)] = msg_str
-    print("image_filename: {}, prompt: {}".format(image_path_json["image_filename"], image_path_json["prompt"]))
+    print("image_filename: {}, prompt: {}".format(image1_path_json["image_filename"], image1_path_json["prompt"]))
     print("request: {}".format(msg_str))
     s_client.send_array(msg)
-    time.sleep(20.0)
+    time.sleep(30.0)
     print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
 
     msg.__init__(len(msg))
@@ -176,7 +180,7 @@ def run_client():
     print("prompt: {}".format(q1_prompt_json["prompt"]))
     print("request: {}".format(msg_str))
     s_client.send_array(msg)
-    time.sleep(5.0)
+    time.sleep(15.0)
     print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
 
     msg.__init__(len(msg))
@@ -187,6 +191,93 @@ def run_client():
     s_client.send_array(msg)
     time.sleep(5.0)
     print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
+    msg.__init__(len(msg))
+    msg_str = bytearray(json.dumps(q3_prompt_json), "utf-8")
+    msg[0:len(msg_str)] = msg_str
+    print("prompt: {}".format(q3_prompt_json["prompt"]))
+    print("request: {}".format(msg_str))
+    s_client.send_array(msg)
+    time.sleep(5.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
+
+    msg.__init__(len(msg))
+    msg_str = bytearray(json.dumps(q4_prompt_json), "utf-8")
+    msg[0:len(msg_str)] = msg_str
+    print("prompt: {}".format(q4_prompt_json["prompt"]))
+    print("request: {}".format(msg_str))
+    s_client.send_array(msg)
+    time.sleep(5.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
+
+    msg.__init__(len(msg))
+    msg_str = bytearray(json.dumps(q5_prompt_json), "utf-8")
+    msg[0:len(msg_str)] = msg_str
+    print("prompt: {}".format(q5_prompt_json["prompt"]))
+    print("request: {}".format(msg_str))
+    s_client.send_array(msg)
+    time.sleep(5.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
+
+    msg.__init__(len(msg))
+    msg_str = bytearray(json.dumps(image2_path_json), "utf-8")
+    msg[0:len(msg_str)] = msg_str
+    print("prompt: {}".format(image2_path_json["prompt"]))
+    print("request: {}".format(msg_str))
+    s_client.send_array(msg)
+    time.sleep(30.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
+    msg.__init__(len(msg))
+    msg_str = bytearray(json.dumps(q1_prompt_json), "utf-8")
+    msg[0:len(msg_str)] = msg_str
+    print("prompt: {}".format(q1_prompt_json["prompt"]))
+    print("request: {}".format(msg_str))
+    s_client.send_array(msg)
+    time.sleep(15.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
+    msg.__init__(len(msg))
+    msg_str = bytearray(json.dumps(q2_prompt_json), "utf-8")
+    msg[0:len(msg_str)] = msg_str
+    print("prompt: {}".format(q2_prompt_json["prompt"]))
+    print("request: {}".format(msg_str))
+    s_client.send_array(msg)
+    time.sleep(5.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
+    msg.__init__(len(msg))
+    msg_str = bytearray(json.dumps(q3_prompt_json), "utf-8")
+    msg[0:len(msg_str)] = msg_str
+    print("prompt: {}".format(q3_prompt_json["prompt"]))
+    print("request: {}".format(msg_str))
+    s_client.send_array(msg)
+    time.sleep(5.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
+
+    msg.__init__(len(msg))
+    msg_str = bytearray(json.dumps(q4_prompt_json), "utf-8")
+    msg[0:len(msg_str)] = msg_str
+    print("prompt: {}".format(q4_prompt_json["prompt"]))
+    print("request: {}".format(msg_str))
+    s_client.send_array(msg)
+    time.sleep(5.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
+
+    msg.__init__(len(msg))
+    msg_str = bytearray(json.dumps(q5_prompt_json), "utf-8")
+    msg[0:len(msg_str)] = msg_str
+    print("prompt: {}".format(q5_prompt_json["prompt"]))
+    print("request: {}".format(msg_str))
+    s_client.send_array(msg)
+    time.sleep(5.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
+
 
 if __name__ == "__main__":
     print("********** running test ************")

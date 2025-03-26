@@ -707,7 +707,7 @@ public:
                 if(len == 0)
                 {
                     LOG_INF("recv timeout\n");
-                    // sleep(1);
+                    sleep(1);
                     // break;
                     continue;
                 }
@@ -749,6 +749,7 @@ public:
                         LOG_ERR("%s: failed to load image %s. Terminating\n\n", __func__, full_image_path.c_str());
                         continue;
                     }
+                    llama_kv_cache_clear(ctx_llava_->ctx_llama);
                     process_prompt(ctx_llava_, image_embed_, &params_, params_.prompt, std::bind(&Qwen2vlServer::SendResp, this, std::placeholders::_1));
                     llama_perf_context_print(ctx_llava_->ctx_llama);
                 }
@@ -771,7 +772,8 @@ public:
                         LOG_ERR("%s: no image embed in this session \n\n", __func__);
                         continue;
                     }
-                    process_prompt(ctx_llava_, nullptr, &params_, params_.prompt, std::bind(&Qwen2vlServer::SendResp, this, std::placeholders::_1));
+                    llama_kv_cache_clear(ctx_llava_->ctx_llama);
+                    process_prompt(ctx_llava_, image_embed_, &params_, params_.prompt, std::bind(&Qwen2vlServer::SendResp, this, std::placeholders::_1));
                     llama_perf_context_print(ctx_llava_->ctx_llama);
                 }
             }
