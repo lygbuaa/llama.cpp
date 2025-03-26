@@ -241,7 +241,12 @@ static struct llava_image_embed * load_image(llava_context * ctx_llava, common_p
     return embed;
 }
 
-static void process_prompt(struct llava_context * ctx_llava, struct llava_image_embed * image_embed, common_params * params, const std::string & prompt) {
+static void process_prompt(struct llava_context * ctx_llava, 
+                            struct llava_image_embed * image_embed, 
+                            common_params * params, 
+                            const std::string & prompt,
+                            std::function<ssize_t(const char*)> fcb=nullptr) 
+{
     HANG_STOPWATCH();
     int n_past = 0;
     int cur_pos_id = 0;
@@ -305,6 +310,12 @@ static void process_prompt(struct llava_context * ctx_llava, struct llava_image_
         if (strcmp(tmp, "</s>") == 0) break;
         if (strstr(tmp, "###")) break; // Yi-VL behavior
         LOG("%s", tmp);
+        /** echo token to client */
+        // g_ppl_->SendResp(tmp);
+        if(fcb)
+        {
+            fcb(tmp);
+        }
         if (strstr(response.c_str(), "<|im_end|>")) break; // Yi-34B llava-1.6 - for some reason those decode not as the correct token (tokenizer works)
         if (strstr(response.c_str(), "<|im_start|>")) break; // Yi-34B llava-1.6
         if (strstr(response.c_str(), "USER:")) break; // mistral llava-1.6
@@ -635,21 +646,19 @@ public:
         LOG_INF("ip_addr: %s, ip_port: %d.\n", ip_addr, ip_port);
 
         /** init tcp server */
-        tcp_server_ = std::unique_ptr<common::TcpSocketServer>(new common::TcpSocketServer(ip_addr, 10001));
+        tcp_server_ = std::shared_ptr<common::TcpSocketServer>(new common::TcpSocketServer(ip_addr, 10001));
         if(!tcp_server_->init_server())
         {
             LOG_ERR("init server fail.\n");
             return false;
         }
 
-        /** wait connection */
-        tcp_server_->waiting_client();
-
         /** start work thread */
         running_ = true;
         setlocale(LC_ALL, "en_US.UTF-8");
         image_embed_ = NULL;
-        work_loop_ = std::unique_ptr<std::thread>(new std::thread(&Qwen2vlServer::WorkLoop, this));
+        send_buf_ = (char*)malloc(MSG_LEN_);
+        work_loop_ = std::shared_ptr<std::thread>(new std::thread(&Qwen2vlServer::RecvLoop, this));
         return true;
     }
 
@@ -666,100 +675,123 @@ public:
             ctx_llava_->model = NULL;
             llava_free(ctx_llava_);
             llama_model_free(model_);
+            free(send_buf_);
         }
     }
 
-    void WorkLoop()
+    ssize_t SendResp(const char* resp)
     {
-        LOG_INF("WorkLoop start.\n");
+        // memset(send_buf_, 0, MSG_LEN_);
+        // memcpy(send_buf_, resp, strlen(resp));
+        ssize_t len = tcp_server_ -> s_send(resp, strlen(resp));
+        LOG_INF("send resp(%d): [%s]\n", len, resp);
+        return len;
+    }
+
+    void RecvLoop()
+    {
+        LOG_INF("RecvLoop start.\n");
         char* recv_buf = (char*)malloc(4*MSG_LEN_);
         struct timeval timeout;
-        timeout.tv_sec = 4;
+        timeout.tv_sec = 20;
         timeout.tv_usec = 0;
         while(running_)
         {
-            /** recv image and prompt */
-            memset(recv_buf, 0, 4*MSG_LEN_);
-            ssize_t len = tcp_server_ -> s_recv(recv_buf, MSG_LEN_, &timeout);
-            LOG_INF("recv %ld bytes: %s\n", len, recv_buf);
-            if(len <=0)
+            /** wait connection */
+            tcp_server_->waiting_client();
+            while(running_)
             {
-                LOG_INF("recv timeout\n");
-                sleep(1);
-                continue;
-            }
+                /** recv image and prompt */
+                memset(recv_buf, 0, 4*MSG_LEN_);
+                ssize_t len = tcp_server_ -> s_recv(recv_buf, MSG_LEN_, &timeout);
+                if(len == 0)
+                {
+                    LOG_INF("recv timeout\n");
+                    // sleep(1);
+                    // break;
+                    continue;
+                }
+                else if(len == -11)
+                {
+                    LOG_INF("client exit, break.\n");
+                    break;
+                }
+                LOG_INF("recv %ld bytes: %s\n", len, recv_buf);
 
-            tiny::TinyJson obj;
-            obj.ReadJson(recv_buf);
-            std::string image_filename = obj.Get<std::string>("image_filename", "");
-            if(image_filename.size() > 0)
-            {
-                /** this is image with prompt */
-                std::string prompt = obj.Get<std::string>("prompt", "");
-                if(prompt.size() < 1)
+                tiny::TinyJson obj;
+                obj.ReadJson(recv_buf);
+                std::string image_filename = obj.Get<std::string>("image_filename", "");
+                if(image_filename.size() > 0)
                 {
-                    LOG_WRN("prompt empty\n");
-                    sleep(1);
-                    continue;
-                }
-                params_.image.clear();
-                if(image_embed_)
-                {
-                    llava_image_embed_free(image_embed_);
-                    image_embed_ = NULL;
-                }
-                std::string full_image_path = LOCAL_IMG_PATH_ + image_filename;
-                params_.image.push_back(full_image_path);
-                params_.prompt = gfUnescapeUnicode(prompt);
+                    /** this is image with prompt */
+                    std::string prompt = obj.Get<std::string>("prompt", "");
+                    if(prompt.size() < 1)
+                    {
+                        LOG_WRN("prompt empty\n");
+                        sleep(1);
+                        continue;
+                    }
+                    params_.image.clear();
+                    /** new image arrive, clear embed */
+                    if(image_embed_)
+                    {
+                        llava_image_embed_free(image_embed_);
+                        image_embed_ = NULL;
+                    }
+                    std::string full_image_path = LOCAL_IMG_PATH_ + image_filename;
+                    params_.image.push_back(full_image_path);
+                    params_.prompt = gfUnescapeUnicode(prompt);
 
-                LOGPF("image_filename: %s, prompt: %s\n", image_filename.c_str(), params_.prompt.c_str());
-                image_embed_ = load_image(ctx_llava_, &params_, full_image_path);
-                if(!image_embed_)
-                {
-                    LOG_ERR("%s: failed to load image %s. Terminating\n\n", __func__, full_image_path.c_str());
-                    continue;
+                    LOG_INF("image_filename: %s, prompt: %s\n", image_filename.c_str(), params_.prompt.c_str());
+                    image_embed_ = load_image(ctx_llava_, &params_, full_image_path);
+                    if(!image_embed_)
+                    {
+                        LOG_ERR("%s: failed to load image %s. Terminating\n\n", __func__, full_image_path.c_str());
+                        continue;
+                    }
+                    process_prompt(ctx_llava_, image_embed_, &params_, params_.prompt, std::bind(&Qwen2vlServer::SendResp, this, std::placeholders::_1));
+                    llama_perf_context_print(ctx_llava_->ctx_llama);
                 }
-                process_prompt(ctx_llava_, image_embed_, &params_, params_.prompt);
-                llama_perf_context_print(ctx_llava_->ctx_llama);
-            }
-            else
-            {
-                /** this is only prompt */
-                std::string prompt = obj.Get<std::string>("prompt", "");
-                if(prompt.size() < 1)
+                else
                 {
-                    LOG_WRN("prompt empty\n");
-                    sleep(1);
-                    continue;
-                }
-                params_.prompt.clear();
-                params_.prompt = gfUnescapeUnicode(prompt);
-                LOGPF("prompt: %s\n", params_.prompt.c_str());
+                    /** this is only prompt */
+                    std::string prompt = obj.Get<std::string>("prompt", "");
+                    if(prompt.size() < 1)
+                    {
+                        LOG_WRN("prompt empty\n");
+                        sleep(1);
+                        continue;
+                    }
+                    params_.prompt.clear();
+                    params_.prompt = gfUnescapeUnicode(prompt);
+                    LOG_INF("prompt: %s\n", params_.prompt.c_str());
 
-                if(!image_embed_)
-                {
-                    LOG_ERR("%s: no image embed in this session \n\n", __func__);
-                    continue;
+                    if(!image_embed_)
+                    {
+                        LOG_ERR("%s: no image embed in this session \n\n", __func__);
+                        continue;
+                    }
+                    process_prompt(ctx_llava_, nullptr, &params_, params_.prompt, std::bind(&Qwen2vlServer::SendResp, this, std::placeholders::_1));
+                    llama_perf_context_print(ctx_llava_->ctx_llama);
                 }
-                process_prompt(ctx_llava_, nullptr, &params_, params_.prompt);
-                llama_perf_context_print(ctx_llava_->ctx_llama);
             }
         }
         free(recv_buf);
-        LOG_INF("WorkLoop stop.\n");
+        LOG_INF("RecvLoop stop.\n");
     }
 
 private:
     constexpr static char* LOCAL_IMG_PATH_="images/";
     constexpr static int MSG_LEN_ = 1024;
 
-    std::unique_ptr<common::TcpSocketServer> tcp_server_;
-    std::unique_ptr<std::thread> work_loop_;
+    std::shared_ptr<common::TcpSocketServer> tcp_server_;
+    std::shared_ptr<std::thread> work_loop_;
     volatile bool running_;
     struct llama_model* model_;
     common_params params_;
     struct llava_context* ctx_llava_;
     struct llava_image_embed* image_embed_;
+    char* send_buf_;
 };
 
 int main(int argc, char ** argv)
@@ -774,8 +806,8 @@ int main(int argc, char ** argv)
     SignalHandlers::RegisterBackTraceSignals(sigs);
     SignalHandlers::RegisterBreakSignals(SIGINT);
 
-    auto ppl = std::make_shared<Qwen2vlServer>();
-    ppl -> Init(argc, argv);
+    auto g_ppl_ = std::make_shared<Qwen2vlServer>();
+    g_ppl_ -> Init(argc, argv);
 
     uint32_t heartbeat = 0;
     while(!SignalHandlers::BreakByUser())
@@ -784,6 +816,6 @@ int main(int argc, char ** argv)
         sleep(10);
     }
 
-    ppl->Stop();
+    g_ppl_->Stop();
     return 0;
 }

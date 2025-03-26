@@ -81,6 +81,7 @@ public:
     {
         RLOGW("@q@ pid %d catch break signal %d", getpid(), sig);
         break_flag_ = true;
+        _exit(sig);
     }
 
     static bool BreakByUser()

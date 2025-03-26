@@ -227,7 +227,7 @@ public:
             ssize_t ret = select(connfd_ + 1, &fdset_, NULL, NULL, timeout);
             if (ret == 0)
             {
-                LOGPF("socket select timeout!");
+                LOGPF("socket select timeout: %s", strerror(errno));
                 return ret;
             } 
             else if(ret < 0) 
@@ -242,8 +242,8 @@ public:
                 if(ret == 0) 
                 {
                     FD_CLR(connfd_, &fdset_);
-                    LOGPF("socket closed by peer, exit!");
-                    break;
+                    LOGPF("socket closed by peer: %s!", strerror(errno));
+                    return -11;
                 }
                 else if (ret < 0)
                 {

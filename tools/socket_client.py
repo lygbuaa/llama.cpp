@@ -88,6 +88,11 @@ class SocketClient(object):
         self.host = host
         self.port = port
         self.dst_addr = (host, port)
+        self.type = type
+        self.data_len = 3 ### 3 bytes for each chinese character.
+        self.counter = 0
+        self.msg = bytearray()
+        self.full_resp = bytearray()
 
         if type == socket.SOCK_DGRAM:
             self.socket_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #SOCK_STREAM
@@ -99,9 +104,7 @@ class SocketClient(object):
             print("client connect to {}:{}".format(host, port))
         else:
             raise SystemError("socket type {} not supported !".format(type))
-
         print("udp server will send to {}:{}".format(self.host, self.port))
-        
 
     def send_list(self, data_list=[]):
         msg = bytearray(data_list)
@@ -110,10 +113,44 @@ class SocketClient(object):
 
     def send_array(self, data_array):
         self.socket_client.sendto(data_array, self.dst_addr)
+        self.full_resp = bytearray()
+
+    def recv_msg(self):
+        if self.type == socket.SOCK_DGRAM:
+            self.msg, addr = self.socket_client.recvfrom(self.data_len)
+        elif self.type == socket.SOCK_STREAM:
+            self.msg = self.socket_client.recv(self.data_len)
+        else:
+            raise SystemError("socket type {} not supported !".format(type))
+
+        if not self.msg:
+            print("recv error, loop quit")
+            # self.th._stop()
+            sys.exit(1)
+        recvtime = time.time()
+        if self.counter % 1 == 0:
+            print("recv [{}] msg from server, timestamp {}sec".format(self.counter, recvtime))
+        self.counter += 1
+
+    def post_process(self, msg):
+        # print("this is SocketServer base stub!")
+        msg_str = str(self.msg, encoding='utf-8')
+        print("recv msg_str: {}".format(msg_str))
+        self.full_resp += self.msg
+
+    def start_recv_thread(self, run_background=True):
+        try: 
+            self.th = ThreadBase(name="recv_thread", preprocess=self.recv_msg, callback=self.post_process, callback_args=(self.msg,))
+            self.th.setDaemon(run_background)
+            self.th.start()
+            print("recv thread start")
+        except Exception as err:
+            print("start_recv_thread error: {}".format(err))
 
 
 def run_client():
     s_client = SocketClient(host="127.0.0.1", port=10001, type=socket.SOCK_STREAM)
+    s_client.start_recv_thread()
     counter = 0
     msg = bytearray(1024) #1024
     msg.__init__(len(msg))
@@ -128,25 +165,28 @@ def run_client():
     # msg_str = bytearray(u"图片中是哪个景点", "utf-8")
     msg[0:len(msg_str)] = msg_str
     print("image_filename: {}, prompt: {}".format(image_path_json["image_filename"], image_path_json["prompt"]))
-    print("msg_str: {}".format(msg_str))
+    print("request: {}".format(msg_str))
     s_client.send_array(msg)
     time.sleep(20.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
 
     msg.__init__(len(msg))
     msg_str = bytearray(json.dumps(q1_prompt_json), "utf-8")
     msg[0:len(msg_str)] = msg_str
     print("prompt: {}".format(q1_prompt_json["prompt"]))
-    print("msg_str: {}".format(msg_str))
+    print("request: {}".format(msg_str))
     s_client.send_array(msg)
-    time.sleep(10.0)
+    time.sleep(5.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
 
     msg.__init__(len(msg))
     msg_str = bytearray(json.dumps(q2_prompt_json), "utf-8")
     msg[0:len(msg_str)] = msg_str
     print("prompt: {}".format(q2_prompt_json["prompt"]))
-    print("msg_str: {}".format(msg_str))
+    print("request: {}".format(msg_str))
     s_client.send_array(msg)
-    time.sleep(1.0)
+    time.sleep(5.0)
+    print("response: {}".format(str(s_client.full_resp, encoding='utf-8')))
 
 if __name__ == "__main__":
     print("********** running test ************")
