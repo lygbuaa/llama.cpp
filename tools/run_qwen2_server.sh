@@ -18,14 +18,14 @@ function find_llama_path() {
 
 LLAMA_PATH=$( find_llama_path )
 cd ${LLAMA_PATH}
-LIB_LLAMA_PATH=${LLAMA_PATH}/build
+LIB_LLAMA_PATH=${LLAMA_PATH}/build/bin
 export LD_LIBRARY_PATH=${LIB_LLAMA_PATH}:$LD_LIBRARY_PATH
 
-VL_MODEL_PATH=${LLAMA_PATH}/../vlm_models/qwen2/Qwen2-VL-7B-Instruct-Q4_K_M.gguf
+VL_MODEL_PATH=${LLAMA_PATH}/../vlm_models/qwen2/Qwen2-VL-7B-Instruct-IQ2_M.gguf
 PROJ_MODEL_PATH=${LLAMA_PATH}/../vlm_models/qwen2/mmproj-Qwen2-VL-7B-Instruct-Q4_K.gguf
 IMG_PATH=${LLAMA_PATH}/../vlm_models/image/bridge_640_360.jpg
 PROMPT="图片是哪个地方?"
-HOST_IP=192.18.34.101
+HOST_IP=127.0.0.1
 HOST_PORT=10001
 TEMPERATURE=0.0
 

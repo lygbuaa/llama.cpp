@@ -149,18 +149,18 @@ class SocketClient(object):
 
 
 def run_client():
-    s_client = SocketClient(host="192.18.34.101", port=10001, type=socket.SOCK_STREAM)
+    s_client = SocketClient(host="127.0.0.1", port=10001, type=socket.SOCK_STREAM)
     s_client.start_recv_thread()
     counter = 0
     msg = bytearray(1024) #1024
     msg.__init__(len(msg))
-    image1_path_json = {"image_filename": "bridge_640_360.jpg", "prompt": u"描述一下这张图片?"}
-    image2_path_json = {"image_filename": "hhl_360_540.jpg", "prompt": u"描述一下这张图片?"}
-    q1_prompt_json = {"prompt": u"刚才输入的图片是哪个地方?"}
-    q2_prompt_json = {"prompt": u"刚才输入的图片中有几辆汽车?"}
-    q3_prompt_json = {"prompt": u"刚才输入的图片中有几个行人?"}
-    q4_prompt_json = {"prompt": u"刚才输入的图片中有几辆公交车?"}
-    q5_prompt_json = {"prompt": u"刚才输入的图片中有几辆摩托车?"}
+    image1_path_json = {"image_filename": "wuhan_bridge.jpg", "height": 270, "width": 480, "prompt": u"图片中是哪里?"}
+    image2_path_json = {"image_filename": "road_uturn.jpg", "height": 270, "width": 480, "prompt": u"图片中是哪里?"}
+    q1_prompt_json = {"prompt": u"图片中天气如何?"}
+    q2_prompt_json = {"prompt": u"图片中有几辆汽车?"}
+    q3_prompt_json = {"prompt": u"图片中有几个行人?"}
+    q4_prompt_json = {"prompt": u"图片中有几辆公交车?"}
+    q5_prompt_json = {"prompt": u"图片中有几辆摩托车?"}
 
     msg = bytearray(1024) #1024
     msg.__init__(len(msg))

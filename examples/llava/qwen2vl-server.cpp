@@ -683,8 +683,14 @@ public:
     {
         // memset(send_buf_, 0, MSG_LEN_);
         // memcpy(send_buf_, resp, strlen(resp));
+        if(++resp_token_count_ == 1)
+        {
+            resp_start_us_ = gfGetCurrentMicros();
+            RLOGW("start count resp token: %ld", resp_start_us_);
+        }
+
         ssize_t len = tcp_server_ -> s_send(resp, strlen(resp));
-        LOG_INF("send resp(%d): [%s]\n", len, resp);
+        // LOG_INF("send resp(%d): [%s]\n", len, resp);
         return len;
     }
 
@@ -695,6 +701,7 @@ public:
         struct timeval timeout;
         timeout.tv_sec = 20;
         timeout.tv_usec = 0;
+        char tmp_buf[256] = {0};
         while(running_)
         {
             /** wait connection */
@@ -741,6 +748,8 @@ public:
                     std::string full_image_path = LOCAL_IMG_PATH_ + image_filename;
                     params_.image.push_back(full_image_path);
                     params_.prompt = gfUnescapeUnicode(prompt);
+                    resp_token_count_ = 0;
+                    prefill_start_us_ = gfGetCurrentMicros();
 
                     LOG_INF("image_filename: %s, prompt: %s\n", image_filename.c_str(), params_.prompt.c_str());
                     image_embed_ = load_image(ctx_llava_, &params_, full_image_path);
@@ -773,9 +782,22 @@ public:
                         continue;
                     }
                     llama_kv_cache_clear(ctx_llava_->ctx_llama);
+                    resp_token_count_ = 0;
+                    prefill_start_us_ = gfGetCurrentMicros();
                     process_prompt(ctx_llava_, image_embed_, &params_, params_.prompt, std::bind(&Qwen2vlServer::SendResp, this, std::placeholders::_1));
                     llama_perf_context_print(ctx_llava_->ctx_llama);
                 }
+                
+                resp_stop_us_ = gfGetCurrentMicros();
+                float prefill_sec = (resp_start_us_ - prefill_start_us_) * 1e-6;
+                float resp_total_sec = (resp_stop_us_ - resp_start_us_) * 1e-6;
+                float ms_per_token = (resp_stop_us_ - resp_start_us_) * 1e-3 / resp_token_count_;
+                float resp_token_fps = 1000.0f / ms_per_token;
+                RLOGI("prefill_sec: %.1f", prefill_sec);
+                RLOGI("resp_token_count_: %d, resp_total_sec: %.1f, ms_per_token: %.1f, resp_token_fps: %.1f", resp_token_count_, resp_total_sec, ms_per_token, resp_token_fps);
+                memset(tmp_buf, 0, 256);
+                snprintf(tmp_buf, 256, "tokens: %d, speed: %.1f /s", resp_token_count_, resp_token_fps);
+                SendResp(tmp_buf);
             }
         }
         free(recv_buf);
@@ -783,7 +805,7 @@ public:
     }
 
 private:
-    constexpr static char* LOCAL_IMG_PATH_="images/";
+    constexpr static char* LOCAL_IMG_PATH_="images/270p/";
     constexpr static int MSG_LEN_ = 1024;
 
     std::shared_ptr<common::TcpSocketServer> tcp_server_;
@@ -794,6 +816,11 @@ private:
     struct llava_context* ctx_llava_;
     struct llava_image_embed* image_embed_;
     char* send_buf_;
+
+    uint32_t resp_token_count_;
+    uint64_t prefill_start_us_;
+    uint64_t resp_start_us_;
+    uint64_t resp_stop_us_;
 };
 
 int main(int argc, char ** argv)

@@ -1,3 +1,17 @@
+# run examples/llava/qwen2vl-server
+## build
+1. `bash tools/build_llama.sh`
+
+## package binaries into texas
+1. `bash tools/package.sh`
+
+## run server
+1. `bash tools/run_qwen2_server.sh`
+
+## run client
+1. `python3 tools/socket_client.py`
+
+
 # llama.cpp
 
 ![llama](https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png)

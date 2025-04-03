@@ -19,6 +19,15 @@ function find_llama_path() {
 LLAMA_PATH=$( find_llama_path )
 cd ${LLAMA_PATH}
 
-mkdir -p texas/build
-cp -R build/bin texas/build
-cp -R tools texas
+mkdir -p texas/build/bin
+mkdir -p texas/tools
+mkdir -p texas/images/270p
+
+## copy libopenblas64-dev libraries
+cp /usr/lib/aarch64-linux-gnu/libopenblas.so    texas/build/bin
+cp /usr/lib/aarch64-linux-gnu/libopenblas64.so  texas/build/bin
+cp build/bin/*.so                   texas/build/bin
+cp build/bin/llama-qwen2vl-server   texas/build/bin
+cp tools/run_qwen2_server.sh        texas/tools
+cp tools/*.py                       texas/tools
+cp -r images/270p                   texas/images
